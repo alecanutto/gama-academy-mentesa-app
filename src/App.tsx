@@ -1,19 +1,23 @@
 import { CssBaseline } from '@mui/material';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Dashboard, Login, Register } from './pages';
+import { BrowserRouter } from 'react-router-dom';
+import {
+  AppThemeProvider,
+  AuthProvider,
+  DrawerProvider,
+} from './shared/contexts';
+import { IndexRoutes } from './shared/routes/index.routes';
 
 export const App: React.FC = () => {
   return (
-    <>
+    <AuthProvider>
       <CssBaseline />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth/login" element={<Login />} />
-          <Route path="/auth/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="*" element={<Navigate to="/auth/login" />} />
-        </Routes>
-      </BrowserRouter>
-    </>
+      <AppThemeProvider>
+        <DrawerProvider>
+          <BrowserRouter>
+            <IndexRoutes />
+          </BrowserRouter>
+        </DrawerProvider>
+      </AppThemeProvider>
+    </AuthProvider>
   );
 };

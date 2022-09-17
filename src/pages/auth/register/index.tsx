@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -10,41 +10,55 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { IValidationErrors } from '../../../shared/interfaces';
-import { CircularProgress } from '@mui/material';
+import { CircularProgress, IconButton, InputAdornment } from '@mui/material';
 import { Copyright } from '../../../shared/components';
+import { useForm } from 'react-hook-form';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { api } from '../../../shared/services/api/axios-config';
+import { useNavigate } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 
-const theme = createTheme();
+type Inputs = {
+  name: string;
+  email: string;
+  password: string;
+};
 
 export const Register: React.FC = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<IValidationErrors>({});
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Inputs>();
 
-  const inputName = useRef<HTMLInputElement | null>();
-  const inputEmail = useRef<HTMLInputElement | null>();
-  const inputPassword = useRef<HTMLInputElement | null>();
+  const navigate = useNavigate();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [disabled, setDisabled] = useState(true);
+  const [isLoading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const handleClickShowPassword = () => setShowPassword(!showPassword);
+  const handleMouseDownPassword = () => setShowPassword(!showPassword);
 
-  useEffect(() => {
-    setError({});
-    if (name.trim() && email.trim() && password.trim()) {
-      setDisabled(false);
-    } else {
-      setDisabled(true);
-    }
-  }, [name, email, password]);
-
-  function onSubmit(evt: React.FormEvent) {
-    evt.preventDefault();
-  }
+  const handleSignUp = useCallback(
+    async ({ name, email, password }: Inputs) => {
+      setLoading(true);
+      await api
+        .post('/auth/signup', { name, email, password })
+        .then(res => {
+          if (res.status === 201) {
+            toast.success('Cadastro realizado com sucesso');
+            navigate('/login');
+          }
+        })
+        .catch(err => toast.error(err.response.data.message))
+        .finally(() => setLoading(false));
+    },
+    []
+  );
 
   return (
-    <ThemeProvider theme={theme}>
+    <>
       <CssBaseline />
+      <Toaster position="top-right" reverseOrder={false} />
       <Container component="main" maxWidth="xs">
         <Box
           boxShadow={3}
@@ -63,9 +77,18 @@ export const Register: React.FC = () => {
           <Typography component="h1" variant="h5">
             Área Reservada
           </Typography>
-          <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 1 }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(handleSignUp)}
+            noValidate
+            sx={{ mt: 1 }}
+          >
             <TextField
-              inputRef={inputName}
+              {...register('name', {
+                minLength: 3,
+                maxLength: 150,
+                required: 'Nome é obrigatório',
+              })}
               variant="outlined"
               margin="normal"
               required
@@ -75,13 +98,19 @@ export const Register: React.FC = () => {
               name="name"
               autoComplete="name"
               autoFocus
-              value={name}
-              onChange={evt => setName(evt.target.value)}
-              error={!!error?.name}
-              helperText={error?.name}
+              error={!!errors.name}
+              helperText={errors.name?.message}
             />
             <TextField
-              inputRef={inputEmail}
+              {...register('email', {
+                minLength: 3,
+                maxLength: 60,
+                required: 'Email é obrigatório',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+                  message: 'Favor informar um email válido',
+                },
+              })}
               variant="outlined"
               margin="normal"
               required
@@ -90,33 +119,47 @@ export const Register: React.FC = () => {
               label="Email"
               name="email"
               autoComplete="email"
-              value={email}
-              onChange={evt => setEmail(evt.target.value)}
-              error={!!error?.email}
-              helperText={error?.email}
+              autoFocus
+              error={!!errors.email}
+              helperText={errors.email?.message}
             />
             <TextField
-              inputRef={inputPassword}
+              {...register('password', {
+                minLength: 8,
+                maxLength: 20,
+                required: 'Senha é obrigatória',
+              })}
               variant="outlined"
               margin="normal"
               required
               fullWidth
               name="password"
               label="Senha"
-              type="password"
               id="password"
               autoComplete="current-password"
-              value={password}
-              onChange={evt => setPassword(evt.target.value)}
-              error={!!error?.password}
-              helperText={error?.password}
+              error={!!errors.password}
+              helperText={errors.password?.message}
+              type={showPassword ? 'text' : 'password'}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                    >
+                      {showPassword ? <Visibility /> : <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 3 }}
-              disabled={disabled}
+              disabled={isLoading}
               endIcon={
                 isLoading ? (
                   <CircularProgress
@@ -137,9 +180,9 @@ export const Register: React.FC = () => {
               </Grid>
             </Grid>
           </Box>
-          <Copyright sx={{ mt: 6, mb: 2 }} />
+          <Copyright sx={{ mt: 4, mb: 2 }} />
         </Box>
       </Container>
-    </ThemeProvider>
+    </>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -11,40 +11,52 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { IValidationErrors } from '../../../shared/interfaces';
-import { CircularProgress, Switch } from '@mui/material';
+import {
+  CircularProgress,
+  IconButton,
+  InputAdornment,
+  Switch,
+} from '@mui/material';
 import { Copyright } from '../../../shared/components';
+import { useForm } from 'react-hook-form';
+import { useAuthContext } from '../../../shared/contexts';
+import toast, { Toaster } from 'react-hot-toast';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-const theme = createTheme();
+type Inputs = {
+  email: string;
+  password: string;
+};
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<IValidationErrors>({});
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Inputs>();
 
-  const inputEmail = useRef<HTMLInputElement | null>();
-  const inputPassword = useRef<HTMLInputElement | null>();
+  const { isAuthenticated, error, isLoading, login } = useAuthContext();
 
   const [remember, setRemember] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [disabled, setDisabled] = useState(true);
 
-  useEffect(() => {
-    setError({});
-    if (email.trim() && password.trim()) {
-      setDisabled(false);
-    } else {
-      setDisabled(true);
-    }
-  }, [email, password]);
+  const [showPassword, setShowPassword] = useState(false);
+  const handleClickShowPassword = () => setShowPassword(!showPassword);
+  const handleMouseDownPassword = () => setShowPassword(!showPassword);
 
-  function onSubmit(evt: React.FormEvent) {
-    evt.preventDefault();
+  function handleSignIn({ email, password }: Inputs) {
+    login(email, password)
+      .then(response => {
+        if (isAuthenticated) console.log('then', response);
+      })
+      .finally(() => {
+        if (error) toast.error(error);
+      });
   }
 
   return (
-    <ThemeProvider theme={theme}>
+    <>
       <CssBaseline />
+      <Toaster position="top-right" reverseOrder={false} />
       <Container component="main" maxWidth="xs">
         <Box
           boxShadow={3}
@@ -63,9 +75,22 @@ export const Login: React.FC = () => {
           <Typography component="h1" variant="h5">
             Área Reservada
           </Typography>
-          <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 1 }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(handleSignIn)}
+            noValidate
+            sx={{ mt: 1 }}
+          >
             <TextField
-              inputRef={inputEmail}
+              {...register('email', {
+                minLength: 3,
+                maxLength: 60,
+                required: 'Email é obrigatório',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+                  message: 'Favor informar um email válido',
+                },
+              })}
               variant="outlined"
               margin="normal"
               required
@@ -75,26 +100,39 @@ export const Login: React.FC = () => {
               name="email"
               autoComplete="email"
               autoFocus
-              value={email}
-              onChange={evt => setEmail(evt.target.value)}
-              error={!!error?.email}
-              helperText={error?.email}
+              error={!!errors.email}
+              helperText={errors.email?.message}
             />
             <TextField
-              inputRef={inputPassword}
+              {...register('password', {
+                minLength: 8,
+                maxLength: 20,
+                required: 'Senha é obrigatória',
+              })}
               variant="outlined"
               margin="normal"
               required
               fullWidth
               name="password"
               label="Senha"
-              type="password"
               id="password"
               autoComplete="current-password"
-              value={password}
-              onChange={evt => setPassword(evt.target.value)}
-              error={!!error?.password}
-              helperText={error?.password}
+              error={!!errors.password}
+              helperText={errors.password?.message}
+              type={showPassword ? 'text' : 'password'}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                    >
+                      {showPassword ? <Visibility /> : <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <FormControlLabel
               control={
@@ -111,7 +149,7 @@ export const Login: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 3 }}
-              disabled={disabled}
+              // disabled={disabled}
               endIcon={
                 isLoading ? (
                   <CircularProgress
@@ -137,9 +175,9 @@ export const Login: React.FC = () => {
               </Grid>
             </Grid>
           </Box>
-          <Copyright sx={{ mt: 6, mb: 2 }} />
+          <Copyright sx={{ mt: 4, mb: 2 }} />
         </Box>
       </Container>
-    </ThemeProvider>
+    </>
   );
 };

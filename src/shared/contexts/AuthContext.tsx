@@ -7,26 +7,38 @@ import {
   useState,
 } from 'react';
 
-import { AuthService } from '../services/api/auth/AuthService';
+import { api } from '../services/api/axios-config';
 
-interface IAuthContextData {
-  logout: () => void;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<string | void>;
+interface IUser {
+  id: number;
+  email: string;
 }
 
-const AuthContext = createContext({} as IAuthContextData);
-
-const LOCAL_STORAGE_KEY__ACCESS_TOKEN = 'APP_ACCESS_TOKEN';
+interface IAuthContextData {
+  user: IUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string;
+  logout: () => void;
+  login: (email: string, password: string) => Promise<any>;
+}
 
 interface IAuthProviderProps {
   children: React.ReactNode;
 }
+
+const AuthContext = createContext({} as IAuthContextData);
+
+const ACCESS_TOKEN = 'MENTE_SA_ACCESS_TOKEN';
+
 export const AuthProvider: React.FC<IAuthProviderProps> = ({ children }) => {
   const [accessToken, setAccessToken] = useState<string>();
+  const [user, setUser] = useState<IUser | null>(null);
+  const [isLoading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const accessToken = localStorage.getItem(LOCAL_STORAGE_KEY__ACCESS_TOKEN);
+    const accessToken = localStorage.getItem(ACCESS_TOKEN);
 
     if (accessToken) {
       setAccessToken(JSON.parse(accessToken));
@@ -36,20 +48,23 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({ children }) => {
   }, []);
 
   const handleLogin = useCallback(async (email: string, password: string) => {
-    const result = await AuthService.auth(email, password);
-    if (result instanceof Error) {
-      return result.message;
-    } else {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEY__ACCESS_TOKEN,
-        JSON.stringify(result.accessToken)
-      );
-      setAccessToken(result.accessToken);
-    }
+    setLoading(true);
+    await api
+      .post('/auth/login', { email, password })
+      .then(res => {
+        const { token, data } = res.data.accessToken;
+        if (res.status === 200) {
+          setUser(data);
+          setAccessToken(token);
+          localStorage.setItem(ACCESS_TOKEN, JSON.stringify(token));
+        }
+      })
+      .catch(err => setError(err.response.data.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY__ACCESS_TOKEN);
+    localStorage.removeItem(ACCESS_TOKEN);
     setAccessToken(undefined);
   }, []);
 
@@ -57,7 +72,14 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, login: handleLogin, logout: handleLogout }}
+      value={{
+        user,
+        error,
+        isLoading,
+        isAuthenticated,
+        login: handleLogin,
+        logout: handleLogout,
+      }}
     >
       {children}
     </AuthContext.Provider>

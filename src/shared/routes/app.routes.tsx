@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Dashboard } from '../../pages';
-import { Patients } from '../../pages/patients/PatientsTable';
+import { PatientsTable } from '../../pages/patients/PatientsTable';
 import { Profile } from '../../pages/profile/ProfileForm';
 import { SideMenu } from '../components/sideMenu';
 import { useDrawerContext } from '../contexts';
@@ -40,7 +40,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="*" element={<Navigate to="/dashboard" />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profissional" element={<Profile />} />
-        <Route path="/pacientes" element={<Patients />} />
+        <Route path="/pacientes" element={<PatientsTable />} />
       </Routes>
     </SideMenu>
   );
